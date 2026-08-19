@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>短视频带货竞品分析工具</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#ffffff; --line:#e6e8eb; --text:#1f2329;
+    --muted:#8a8f99; --brand:#2f6bff; --brand2:#eef3ff; --red:#e34d59;
+    --green:#21a366; --amber:#f59e0b; --shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+    background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+  header{background:var(--panel);border-bottom:1px solid var(--line);padding:14px 24px;
+    display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:20}
+  header h1{font-size:17px;margin:0;font-weight:700}
+  header .sub{color:var(--muted);font-size:12px}
+  header .spacer{flex:1}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:7px 14px;
+    border-radius:8px;cursor:pointer;font-size:13px;transition:.15s}
+  .btn:hover{background:var(--brand2);border-color:var(--brand)}
+  .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .btn.primary:hover{filter:brightness(1.05)}
+  .btn.ghost{background:transparent}
+  .btn.sm{padding:4px 10px;font-size:12px;border-radius:6px}
+  nav{display:flex;gap:4px;background:var(--panel);border-bottom:1px solid var(--line);
+    padding:0 16px;position:sticky;top:53px;z-index:19}
+  nav button{background:none;border:none;padding:12px 18px;cursor:pointer;color:var(--muted);
+    font-size:14px;border-bottom:2px solid transparent}
+  nav button.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
+  main{padding:24px;max-width:1180px;margin:0 auto}
+  .view{display:none}
+  .view.active{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:18px;box-shadow:var(--shadow);margin-bottom:18px}
+  .card h3{margin:0 0 14px;font-size:15px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;background:#fafbfc;position:sticky;top:0}
+  tr:hover td{background:#fafbff}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:var(--brand2);color:var(--brand)}
+  .tag.hot{background:#fdecec;color:var(--red)}
+  .tag.cool{background:#eaf7f0;color:var(--green)}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all}
+  .copy-btn{margin-left:6px;padding:1px 7px;font-size:11px;vertical-align:middle}
+  .num{font-variant-numeric:tabular-nums;font-weight:600}
+  .pos{color:var(--red)} .neg{color:var(--green)}
+  .acc-name{white-space:nowrap}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .toolbar input,.toolbar select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+  .empty{color:var(--muted);text-align:center;padding:40px 0}
+  /* modal */
+  .mask{position:fixed;inset:0;background:rgba(15,23,42,.35);display:none;z-index:50;
+    align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+  .mask.show{display:flex}
+  .modal{background:#fff;border-radius:14px;width:560px;max-width:100%;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+  .modal h3{margin:0 0 16px;font-size:16px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .field input,.field select,.field textarea{width:100%;padding:8px 10px;border:1px solid var(--line);
+    border-radius:8px;font-size:13px;font-family:inherit}
+  .field textarea{resize:vertical;min-height:60px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .modal .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:8px}
+  .hint{font-size:12px;color:var(--amber);margin-bottom:10px}
+  /* dashboard */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+  .stat .v{font-size:26px;font-weight:700}
+  .stat .k{color:var(--muted);font-size:12px;margin-top:4px}
+  .chartwrap{overflow-x:auto}
+  svg{display:block;max-width:100%}
+  .legend{font-size:12px;color:var(--muted);margin-top:8px}
+  .pill{font-size:11px;padding:1px 7px;border-radius:999px;background:#f0f2f5;color:#555}
+  a.link{color:var(--brand);text-decoration:none}
+  a.link:hover{text-decoration:underline}
+  .rank{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .rank .idx{width:24px;height:24px;border-radius:50%;background:var(--brand2);color:var(--brand);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+  .rank .bar{height:8px;background:var(--brand);border-radius:4px}
+  .rank .name{flex:1}
+  .rank .copy{margin-right:12px;white-space:nowrap}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>短视频带货竞品分析工具</h1>
+    <div class="sub">竞品账号库 · 每日数据记录 · 爆款案例库 · 数据看板</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn ghost sm" id="btnImport">导入JSON</button>
+  <button class="btn ghost sm" id="btnExport">导出JSON</button>
+  <button class="btn ghost sm" id="btnClear">清空本地数据</button>
+  <button class="btn ghost sm" id="btnSync">同步库数据</button>
+  <input type="file" id="fileInput" accept="application/json" style="display:none">
+</header>
+
+<nav>
+  <button data-view="accounts" class="active">竞品账号库</button>
+  <button data-view="daily">每日数据记录</button>
+  <button data-view="cases">爆款案例库</button>
+  <button data-view="dash">数据看板</button>
+</nav>
+
+<main>
+  <!-- 账号库 -->
+  <section class="view active" id="view-accounts">
+    <div class="toolbar">
+      <button class="btn primary" id="addAcc">+ 新增账号</button>
+      <input id="accSearch" placeholder="搜索账号名称/领域/定位">
+    </div>
+    <div class="card" style="padding:0;overflow:auto">
+      <table id="tblAccounts">
+        <thead><tr>
+          <th>序号</th><th>账号名称</th><th>平台</th><th>首次发现</th><th>开通时间</th><th>主页链接</th><th>橱窗链接</th>
+          <th>内容领域</th><th>主要商品</th><th>备注</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 每日记录 -->
+  <section class="view" id="view-daily">
+    <div class="toolbar">
+      <button class="btn primary" id="addDaily">+ 新增每日记录</button>
+      <button class="btn" id="batchDaily">批量新增记录</button>
+      <button class="btn" id="exportLinks">导出采集清单</button>
+      <select id="dailyAccFilter"><option value="">全部账号</option></select>
+      <input id="dailyDate" type="date">
+      <button class="btn sm" id="dailyReset">重置筛选</button>
+    </div>
+    <div class="card" style="padding:0;overflow:auto">
+      <table id="tblDaily">
+        <thead><tr>
+          <th>日期</th><th>账号</th><th>视频标题</th><th>视频类型</th><th>商品</th>
+          <th>当前销量</th><th>昨日销量</th><th>新增销量</th><th>点赞</th><th>评论</th>
+          <th>播放量</th><th>爆款</th><th>备注</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 爆款案例 -->
+  <section class="view" id="view-cases">
+    <div class="toolbar">
+      <button class="btn primary" id="addCase">+ 新增爆款案例</button>
+      <select id="caseAccFilter"><option value="">全部账号</option></select>
+    </div>
+    <div class="card" style="padding:0;overflow:auto">
+      <table id="tblCases">
+        <thead><tr>
+          <th>账号</th><th>视频标题</th><th>封面标题</th><th>开头3秒</th>
+          <th>内容结构</th><th>情绪点</th><th>商品</th><th>成交效果</th><th>可复制经验</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 看板 -->
+  <section class="view" id="view-dash">
+    <div class="stats" id="statCards"></div>
+
+    <div class="card">
+      <h3>① 增长最快账号（近 <input id="winDays" type="number" value="1" min="1" style="width:56px;padding:4px 6px"> 天累计新增销量）</h3>
+      <div id="fastRank"></div>
+    </div>
+
+    <div class="card">
+      <h3>② 按日期增长趋势（新增销量）</h3>
+      <div class="toolbar">
+        <select id="trendAcc"><option value="">全部账号合计</option></select>
+        <select id="trendMetric">
+          <option value="add">新增销量</option>
+          <option value="current">当前销量</option>
+          <option value="play">播放量</option>
+        </select>
+      </div>
+      <div class="chartwrap" id="trendChart"></div>
+      <div class="legend">横轴为日期，纵轴为所选指标；可切换账号与指标观察增长曲线。</div>
+    </div>
+
+    <div class="card">
+      <h3>③ 销量最高商品（按商品最新累计销量 TOP 10）</h3>
+      <div class="chartwrap" id="topChart"></div>
+    </div>
+  </section>
+</main>
+
+<!-- 弹窗 -->
+<div class="mask" id="mask">
+  <div class="modal">
+    <h3 id="modalTitle">标题</h3>
+    <div id="modalBody"></div>
+    <div class="actions">
+      <button class="btn ghost" id="modalCancel">取消</button>
+      <button class="btn primary" id="modalSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="./data.js"></script>
+<script>
+/* ============================================================
+ *  ⚠️ 分享版数据声明（给使用者和 WorkBuddy 看）
+ *  ----------------------------------------------------------
+ *  1. 这是「分享版」，数据完全独立、本地存储，不与任何主版本同步。
+ *  2. data.js 里只有 1 条示例账号（六月人物漫谈），仅用于演示格式；
+ *     你自己的竞品数据需要自行录入或导入，不会从任何地方自动同步过来。
+ *  3. 所有数据只存在「你打开此页面的浏览器 localStorage」里——
+ *     换浏览器、清缓存、换电脑都会丢，请常点「导出JSON」备份。
+ *  4. 如果由 WorkBuddy 帮你写 data.js：
+ *     - 只写【本分享版目录下】的 data.js（与本 html 同目录的那个）；
+ *     - 不要去碰任何"主版/主目录"的 data.js——本分享版不依赖它们；
+ *     - 写完后在工具里点「清空本地数据」→ 刷新页面（或「同步库数据」）即可加载。
+ *  5. data.js 格式：window.INITIAL_DATA = { accounts:[...], daily:[...], cases:[] };
+ *     字段规则见同目录《使用说明.md》。
+ * ============================================================ */
+/* ---------- 存储 ---------- */
+const LS_KEY = 'competitor_analysis_v1';
+let state = { accounts:[], daily:[], cases:[] };
+function assignIds(){
+  ['accounts','daily','cases'].forEach(k=>{
+    (state[k]||[]).forEach(item=>{ if(!item.id) item.id=uid(); });
+  });
+}
+function load(){
+  try{ const s=localStorage.getItem(LS_KEY); if(s){ state=JSON.parse(s); assignIds(); return; } }catch(e){}
+  if(typeof window.INITIAL_DATA !== 'undefined' && window.INITIAL_DATA){
+    state = JSON.parse(JSON.stringify(window.INITIAL_DATA)); assignIds(); save();
+  }
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = n => { n=Number(n)||0; return n.toLocaleString('zh-CN'); };
+function copyText(btn,t){
+  const done=()=>{ const o=btn.textContent; btn.textContent='已复制✓'; setTimeout(()=>btn.textContent=o,1200); };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(t).then(done).catch(()=>{ if(fallbackCopy(t)) done(); });
+  } else { if(fallbackCopy(t)) done(); }
+}
+function fallbackCopy(t){
+  try{ const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.top='-9999px';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    const ok=document.execCommand('copy'); document.body.removeChild(ta); if(!ok) throw 0; return true;
+  }catch(e){ alert('复制失败，请手动复制：\n'+t); return false; }
+}
+const todayStr = () => { const x=new Date(); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
+function inferOpen(a){
+  if(!a.首次发现 || a.发现时已开通===''||a.发现时已开通==null||a.发现时已开通===undefined) return '';
+  const p=a.首次发现.split('-').map(Number); const d=new Date(p[0],p[1]-1,p[2]); if(isNaN(d)) return '';
+  d.setDate(d.getDate()-Number(a.发现时已开通));
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function openDays(a){
+  if(a.发现时已开通===''||a.发现时已开通==null||a.发现时已开通===undefined) return '';
+  let base=Number(a.发现时已开通)||0, days=0;
+  if(a.首次发现){ const p=a.首次发现.split('-').map(Number); const d=new Date(p[0],p[1]-1,p[2]); if(!isNaN(d)) days=Math.floor((Date.now()-d.getTime())/86400000); }
+  return base+days;
+}
+
+/* ---------- 导航 ---------- */
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('view-'+b.dataset.view).classList.add('active');
+    if(b.dataset.view==='dash') renderDash();
+    if(b.dataset.view==='daily') fillAccFilter('dailyAccFilter');
+    if(b.dataset.view==='cases') fillAccFilter('caseAccFilter');
+  };
+});
+
+/* ---------- 账号库 ---------- */
+function renderAccounts(){
+  const q=(document.getElementById('accSearch').value||'').trim().toLowerCase();
+  const tb=document.querySelector('#tblAccounts tbody');
+  let rows=state.accounts.filter(a=>!q || [a.账号名称,a.内容领域,a.主要商品].join(' ').toLowerCase().includes(q));
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="11" class="empty">暂无账号，点击「新增账号」开始</td></tr>'; return; }
+  tb.innerHTML=rows.map((a,i)=>`
+    <tr>
+      <td class="num">${i+1}</td>
+      <td class="acc-name"><b>${esc(a.账号名称)}</b></td>
+      <td>${esc(a.平台||'—')}</td>
+      <td>${a.首次发现?esc(a.首次发现):'—'}</td>
+      <td>${openDays(a)!==''?`${openDays(a)}天`:'—'}</td>
+      <td class="mono">${a.主页链接?esc(a.主页链接):'—'}</td>
+      <td class="mono">${a.橱窗链接?esc(a.橱窗链接)+`<button class="btn sm copy-btn" onclick='copyText(this, ${JSON.stringify(a.橱窗链接)})'>复制</button>`:'—'}</td>
+      <td>${esc(a.内容领域||'—')}</td>
+      <td>${esc(a.主要商品||'—')}</td>
+      <td>${esc(a.备注||'—')}</td>
+      <td>
+        <button class="btn sm" onclick="editAcc('${a.id}')">编辑</button>
+        <button class="btn sm" onclick="delAcc('${a.id}')">删</button>
+      </td>
+    </tr>`).join('');
+}
+function accForm(a){
+  a=a||{};
+  return `
+  <div class="field"><label>账号名称 *</label><input id="f_名称" value="${esc(a.账号名称||'')}"></div>
+  <div class="row2">
+    <div class="field"><label>平台</label><input id="f_平台" value="${esc(a.平台||'')}" placeholder="如 视频号/抖音"></div>
+    <div class="field"><label>首次发现</label><input id="f_发现" type="date" value="${esc(a.首次发现||todayStr())}"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>发现时已开通(天)</label><input id="f_已开" type="number" value="${esc(a.发现时已开通??'')}" placeholder="首次发现时橱窗已开通几天"></div>
+    <div class="field"><label>粉丝量</label><input id="f_粉丝" type="number" value="${esc(a.粉丝量||'')}"></div>
+  </div>
+  <div class="field"><label>内容领域</label><input id="f_领域" value="${esc(a.内容领域||'')}"></div>
+  <div class="field"><label>主页链接</label><input id="f_链接" value="${esc(a.主页链接||'')}" placeholder="账号主页链接"></div>
+  <div class="field"><label>橱窗/小店链接</label><input id="f_橱窗" value="${esc(a.橱窗链接||'')}" placeholder="微信小店/带货橱窗链接"></div>
+  <div class="field"><label>主要商品</label><input id="f_商品" value="${esc(a.主要商品||'')}"></div>
+  <div class="field"><label>账号定位</label><input id="f_定位" value="${esc(a.账号定位||'')}"></div>
+  <div class="field"><label>备注</label><textarea id="f_备注">${esc(a.备注||'')}</textarea></div>`;
+}
+function openAcc(a){
+  editing={table:'acc',id:a&&a.id};
+  document.getElementById('modalTitle').textContent=a?'编辑账号':'新增账号';
+  document.getElementById('modalSave').textContent='保存';
+  document.getElementById('modalBody').innerHTML=accForm(a);
+  showModal();
+}
+function editAcc(id){ openAcc(state.accounts.find(x=>x.id===id)); }
+function delAcc(id){
+  if(!confirm('确认删除该账号？关联的每日记录/案例仍保留。')) return;
+  state.accounts=state.accounts.filter(x=>x.id!==id); save(); renderAccounts();
+}
+document.getElementById('addAcc').onclick=()=>openAcc(null);
+document.getElementById('accSearch').oninput=renderAccounts;
+
+/* ---------- 每日记录 ---------- */
+function accOptions(sel){
+  const list=state.accounts.map(a=>`<option value="${esc(a.账号名称)}">${esc(a.账号名称)}</option>`).join('');
+  return `<select id="f_账号">${state.accounts.length?'':`<option value="">（先建账号）</option>`}${list}</select>`;
+}
+function renderDaily(){
+  const acc=document.getElementById('dailyAccFilter').value;
+  const dt=document.getElementById('dailyDate').value;
+  let rows=state.daily.slice().sort((a,b)=> (b.日期+a.id).localeCompare(a.日期+a.id));
+  if(acc) rows=rows.filter(r=>r.账号===acc);
+  if(dt) rows=rows.filter(r=>r.日期===dt);
+  const tb=document.querySelector('#tblDaily tbody');
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="14" class="empty">暂无记录</td></tr>'; return; }
+  tb.innerHTML=rows.map(r=>{
+    const add=Number(r.新增销量)||0;
+    const cls=add>0?'pos':(add<0?'neg':'');
+    return `<tr>
+      <td>${esc(r.日期)}</td>
+      <td><span class="tag">${esc(r.账号)}</span></td>
+      <td>${esc(r.视频标题||'—')}</td>
+      <td>${esc(r.视频类型||'—')}</td>
+      <td>${esc(r.商品||'—')}</td>
+      <td class="num">${fmt(r.当前销量)}</td>
+      <td class="num">${fmt(r.昨日销量)}</td>
+      <td class="num ${cls}">${add>=0?'+':''}${fmt(add)}</td>
+      <td class="num">${fmt(r.点赞数)}</td>
+      <td class="num">${fmt(r.评论数)}</td>
+      <td class="num">${fmt(r.播放量)}</td>
+      <td>${r.是否爆款==='是'?'<span class="tag hot">爆款</span>':'—'}</td>
+      <td>${esc(r.备注||'—')}</td>
+      <td><button class="btn sm" onclick="editDaily('${r.id}')">编辑</button>
+          <button class="btn sm" onclick="delDaily('${r.id}')">删</button></td>
+    </tr>`;
+  }).join('');
+}
+function dailyForm(r){
+  r=r||{};
+  return `
+  <div class="hint">新增销量 = 当前销量 − 昨日销量（发现当天自动计 0，因无前一日对比），保存时自动计算。</div>
+  <div class="row2">
+    <div class="field"><label>日期 *</label><input id="f_日期" type="date" value="${esc(r.日期||todayStr())}"></div>
+    <div class="field"><label>账号 *</label>${accOptions()}</div>
+  </div>
+  <div class="field"><label>视频标题</label><input id="f_标题" value="${esc(r.视频标题||'')}"></div>
+  <div class="row2">
+    <div class="field"><label>视频类型</label><input id="f_类型" value="${esc(r.视频类型||'')}" placeholder="口播/剧情/测评/混剪"></div>
+    <div class="field"><label>商品</label><input id="f_商品" value="${esc(r.商品||'')}"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>当前销量 *</label><input id="f_当前" type="number" value="${esc(r.当前销量||'')}"></div>
+    <div class="field"><label>昨日销量</label><input id="f_昨日" type="number" value="${esc(r.昨日销量||'')}"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>点赞数</label><input id="f_点赞" type="number" value="${esc(r.点赞数||'')}"></div>
+    <div class="field"><label>评论数</label><input id="f_评论" type="number" value="${esc(r.评论数||'')}"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>播放量</label><input id="f_播放" type="number" value="${esc(r.播放量||'')}"></div>
+    <div class="field"><label>是否爆款</label>
+      <select id="f_爆款"><option value="否"${r.是否爆款!=='是'?' selected':''}>否</option><option value="是"${r.是否爆款==='是'?' selected':''}>是</option></select>
+    </div>
+  </div>
+  <div class="field"><label>备注</label><textarea id="f_备注">${esc(r.备注||'')}</textarea></div>`;
+}
+function openDaily(r){
+  editing={table:'daily',id:r&&r.id};
+  document.getElementById('modalTitle').textContent=r?'编辑每日记录':'新增每日记录';
+  document.getElementById('modalSave').textContent='保存';
+  document.getElementById('modalBody').innerHTML=dailyForm(r);
+  if(r&&r.账号){ const s=document.getElementById('f_账号'); if(s) s.value=r.账号; }
+  showModal();
+}
+function editDaily(id){ openDaily(state.daily.find(x=>x.id===id)); }
+function delDaily(id){ if(!confirm('确认删除该记录？')) return; state.daily=state.daily.filter(x=>x.id!==id); save(); renderDaily(); }
+document.getElementById('addDaily').onclick=()=>{ if(!state.accounts.length){alert('请先在「竞品账号库」添加账号');return;} openDaily(null); };
+document.getElementById('dailyAccFilter').onchange=renderDaily;
+document.getElementById('dailyDate').onchange=renderDaily;
+document.getElementById('dailyReset').onclick=()=>{document.getElementById('dailyAccFilter').value='';document.getElementById('dailyDate').value='';renderDaily();};
+
+/* ---------- 批量新增每日记录 ---------- */
+function prevCurrent(name, date){
+  const recs=state.daily.filter(d=>d.账号===name && d.日期 < date).sort((a,b)=>b.日期.localeCompare(a.日期));
+  return recs.length? (Number(recs[0].当前销量)||0):0;
+}
+function openBatch(){
+  if(!state.accounts.length){alert('请先在「竞品账号库」添加账号');return;}
+  editing={table:'batch',id:null};
+  document.getElementById('modalTitle').textContent='批量新增每日记录';
+  document.getElementById('modalSave').textContent='确认写入';
+  document.getElementById('modalBody').innerHTML=`
+    <div class="field"><label>记录日期 *</label><input id="batch_date" type="date" value="${todayStr()}"></div>
+    <div class="hint">粘贴从《每日采集链接清单》观测到的销量（每行一个账号），系统自动计算昨日/新增销量并做校验。</div>
+    <div class="field"><label>批量数据</label>
+      <textarea id="batch_text" style="min-height:170px" placeholder="格式：账号名（内容领域 / 主要商品） 当前销量  #可选链接&#10;例如：&#10;示例账号甲（历史人物 / 国之脊梁） 444&#10;示例账号乙（历史文化 / 待确认） 3999 #微信小店带货橱窗://示例账号乙的橱窗/DEMO1234abcd"></textarea>
+    </div>
+    <button class="btn" id="batch_parse" type="button">解析预览</button>
+    <div id="batch_preview" style="margin-top:14px"></div>`;
+  document.getElementById('batch_parse').onclick=parseBatch;
+  showModal();
+}
+function parseBatch(){
+  const text=(document.getElementById('batch_text').value||'').trim();
+  const date=val('batch_date')||todayStr();
+  const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const rows=[];
+  lines.forEach(line=>{
+    let m=line.match(/^(.*?)[（(](.*?)[)）]\s+(\d+)\s*(#\S+)?\s*$/);
+    let 账号,当前,链接='',inside='';
+    if(m){ 账号=m[1].trim(); 当前=Number(m[3]); 链接=m[4]||''; inside=m[2]||''; }
+    else {
+      m=line.match(/^(.+?)\s+(\d+)\s*(#\S+)?\s*$/);
+      if(m){ 账号=m[1].trim(); 当前=Number(m[2]); 链接=m[3]||''; inside=''; }
+    }
+    if(!m){ rows.push({账号:line,当前:null,链接:'',ok:'err',flags:['无法识别该行']}); return; }
+    const flags=[];
+    const acc=state.accounts.find(a=>a.账号名称===账号);
+    if(!acc) flags.push('账号库未找到');
+    if(链接 && acc && acc.橱窗链接 && acc.橱窗链接!==链接) flags.push('链接与账号库不符');
+    if(/(待确认|待定|未知)/.test(inside)) flags.push('领域/商品待确认');
+    const yest=prevCurrent(账号,date);
+    const add=当前-yest;
+    if(add<0) flags.push('当前<昨日(负值)');
+    if(yest>0 && add>yest*5) flags.push('异常大涨');
+    rows.push({账号,当前,链接,ok:'ok',flags,yest,add,checked:true});
+  });
+  window.__batchRows=rows;
+  renderBatchPreview(rows,date);
+}
+function renderBatchPreview(rows,date){
+  if(!rows.length){ document.getElementById('batch_preview').innerHTML='<p class="empty">没有可解析的内容</p>'; return; }
+  const body=rows.map((r,i)=>{
+    const flagHtml=r.flags.length? r.flags.map(f=>`<span class="tag hot">${esc(f)}</span>`).join(' '):'<span class="tag cool">正常</span>';
+    const cur=r.ok==='err'?'—':fmt(r.当前);
+    const yest=r.ok==='err'?'—':fmt(r.yest);
+    const add=r.ok==='err'?'—':(r.add>=0?'+':'')+fmt(r.add);
+    const addCls=r.ok==='err'?'':(r.add>0?'pos':(r.add<0?'neg':''));
+    const cb=r.ok==='err'?'':'<input type="checkbox" '+(r.checked?'checked':'')+' onchange="window.__batchRows['+i+'].checked=this.checked">';
+    return `<tr><td>${cb}</td><td class="acc-name"><b>${esc(r.账号)}</b></td><td class="num">${cur}</td><td class="num">${yest}</td><td class="num ${addCls}">${add}</td><td>${flagHtml}</td></tr>`;
+  }).join('');
+  document.getElementById('batch_preview').innerHTML=`
+    <div class="hint">日期：${esc(date)} ｜ 共解析 ${rows.length} 条，勾选「写入」后点「确认写入」。负值/未找到账号已标红，请复核后再写入。</div>
+    <table><thead><tr><th>写入</th><th>账号</th><th>当前销量</th><th>昨日销量</th><th>新增销量</th><th>校验</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+function doBatchWrite(){
+  const date=val('batch_date')||todayStr();
+  const rows=(window.__batchRows||[]).filter(r=>r.checked && r.ok!=='err');
+  if(!rows.length){ alert('没有勾选的有效记录'); return; }
+  let added=0,updated=0;
+  rows.forEach(r=>{
+    const yest=prevCurrent(r.账号,date);
+    const add=r.当前-yest;
+    const ex=state.daily.find(d=>d.账号===r.账号 && d.日期===date);
+    if(ex){ ex.当前销量=r.当前; ex.昨日销量=yest; ex.新增销量=add; updated++; }
+    else { state.daily.push({id:uid(),日期:date,账号:r.账号,视频标题:'',视频类型:'',商品:'',当前销量:r.当前,昨日销量:yest,新增销量:add,点赞数:0,评论数:0,播放量:0,是否爆款:'否',备注:r.链接?('批量录入 '+r.链接):''}); added++; }
+  });
+  save();
+  document.getElementById('mask').classList.remove('show');
+  renderDaily(); fillAccFilter('dailyAccFilter');
+  alert('批量写入完成：新增 '+added+' 条，更新 '+updated+' 条');
+}
+document.getElementById('batchDaily').onclick=openBatch;
+function flashCopy(btn){
+  const o=btn.textContent; btn.textContent='已复制✓'; setTimeout(()=>btn.textContent=o,1200);
+}
+function exportLinks(){
+  if(!state.accounts.length){ alert('账号库为空，无法生成采集清单'); return; }
+  const lines=["# 每日采集链接清单（视频号带货橱窗）","# 用法：把每条链接发到微信「文件传输助手」，在微信里点开即可看到当前销量，再回填到系统「批量新增记录」。",""];
+  let no=0;
+  state.accounts.forEach(a=>{
+    if(!a.橱窗链接) return; // 只列带橱窗链接、可实际采集的账号
+    const name=a.账号名称||"（未命名）";
+    const field=(a.内容领域||"").trim(), prod=(a.主要商品||"").trim();
+    const inner=[field,prod].filter(Boolean).join(" / ");
+    const head=inner?`${name}（${inner}）`:name;
+    no++;
+    lines.push(`${no}. ${head}`);
+    lines.push("  "+a.橱窗链接);
+    lines.push("");
+  });
+  if(!no){ alert('账号库中暂无带橱窗链接的账号，请先在「竞品账号库」补全橱窗链接'); return; }
+  const blob=new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"});
+  const el=document.createElement("a"); el.href=URL.createObjectURL(blob);
+  el.download="每日采集链接清单_"+todayStr()+".txt"; el.click();
+  alert("已导出 "+no+" 个带橱窗链接的账号 → 每日采集链接清单_"+todayStr()+".txt");
+}
+function openLinks(){
+  if(!state.accounts.length){ alert('账号库为空'); return; }
+  const withLink=state.accounts.filter(a=>a.橱窗链接);
+  if(!withLink.length){ alert('账号库中暂无带橱窗链接的账号，请先在「竞品账号库」补全'); return; }
+  const lines=["# 每日采集链接清单（视频号带货橱窗）","",""];
+  withLink.forEach((a,i)=>{
+    const name=a.账号名称||"（未命名）";
+    const field=(a.内容领域||"").trim(), prod=(a.主要商品||"").trim();
+    const inner=[field,prod].filter(Boolean).join(" / ");
+    const head=inner?`${name}（${inner}）`:name;
+    lines.push(`${i+1}. ${head}`);
+    lines.push("  "+a.橱窗链接);
+    lines.push("");
+  });
+  const txt=lines.join("\n");
+  editing={table:'links',id:null};
+  document.getElementById('modalTitle').textContent='每日采集链接清单';
+  document.getElementById('modalSave').style.display='none';
+  document.getElementById('modalCancel').textContent='关闭';
+  document.getElementById('modalBody').innerHTML=`
+    <div class="hint">点「复制全部」复制整份清单。把链接发到微信「文件传输助手」点开看销量，再回「批量新增记录」录入。</div>
+    <div style="display:flex;gap:10px;margin-bottom:10px">
+      <button class="btn primary" id="links_copyall" type="button">复制全部</button>
+      <button class="btn" id="links_download" type="button">下载txt</button>
+    </div>
+    <textarea readonly style="width:100%;height:220px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;padding:8px;border:1px solid var(--line);border-radius:8px">${esc(txt)}</textarea>`;
+  document.getElementById('links_copyall').onclick=()=>{
+    const b=document.getElementById('links_copyall');
+    if(navigator.clipboard && window.isSecureContext){ navigator.clipboard.writeText(txt).then(()=>flashCopy(b)).catch(()=>{ if(fallbackCopy(txt)) flashCopy(b); }); }
+    else { if(fallbackCopy(txt)) flashCopy(b); }
+  };
+  document.getElementById('links_download').onclick=exportLinks;
+  showModal();
+}
+document.getElementById('exportLinks').onclick=openLinks;
+
+/* ---------- 爆款案例 ---------- */
+function renderCases(){
+  const acc=document.getElementById('caseAccFilter').value;
+  let rows=state.cases.slice().sort((a,b)=>(b.账号).localeCompare(a.账号));
+  if(acc) rows=rows.filter(r=>r.账号===acc);
+  const tb=document.querySelector('#tblCases tbody');
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="10" class="empty">暂无案例</td></tr>'; return; }
+  tb.innerHTML=rows.map(c=>`
+    <tr>
+      <td><span class="tag">${esc(c.账号)}</span></td>
+      <td>${esc(c.视频标题||'—')}</td>
+      <td>${esc(c.封面标题||'—')}</td>
+      <td>${esc(c.开头3秒||'—')}</td>
+      <td>${esc(c.内容结构||'—')}</td>
+      <td>${esc(c.情绪点||'—')}</td>
+      <td>${esc(c.商品||'—')}</td>
+      <td>${esc(c.成交效果||'—')}</td>
+      <td>${esc(c.可复制经验||'—')}</td>
+      <td><button class="btn sm" onclick="editCase('${c.id}')">编辑</button>
+          <button class="btn sm" onclick="delCase('${c.id}')">删</button></td>
+    </tr>`).join('');
+}
+function caseForm(c){
+  c=c||{};
+  return `
+  <div class="field"><label>账号 *</label>${accOptions()}</div>
+  <div class="field"><label>视频标题</label><input id="f_标题" value="${esc(c.视频标题||'')}"></div>
+  <div class="field"><label>封面标题</label><input id="f_封面" value="${esc(c.封面标题||'')}"></div>
+  <div class="field"><label>开头3秒</label><textarea id="f_开头">${esc(c.开头3秒||'')}</textarea></div>
+  <div class="field"><label>内容结构</label><textarea id="f_结构">${esc(c.内容结构||'')}</textarea></div>
+  <div class="field"><label>情绪点</label><textarea id="f_情绪">${esc(c.情绪点||'')}</textarea></div>
+  <div class="field"><label>商品</label><input id="f_商品" value="${esc(c.商品||'')}"></div>
+  <div class="field"><label>成交效果</label><input id="f_效果" value="${esc(c.成交效果||'')}"></div>
+  <div class="field"><label>可复制经验</label><textarea id="f_经验">${esc(c.可复制经验||'')}</textarea></div>`;
+}
+function openCase(c){
+  editing={table:'cases',id:c&&c.id};
+  document.getElementById('modalTitle').textContent=c?'编辑爆款案例':'新增爆款案例';
+  document.getElementById('modalSave').textContent='保存';
+  document.getElementById('modalBody').innerHTML=caseForm(c);
+  if(c&&c.账号){ const s=document.getElementById('f_账号'); if(s) s.value=c.账号; }
+  showModal();
+}
+function editCase(id){ openCase(state.cases.find(x=>x.id===id)); }
+function delCase(id){ if(!confirm('确认删除该案例？')) return; state.cases=state.cases.filter(x=>x.id!==id); save(); renderCases(); }
+document.getElementById('addCase').onclick=()=>{ if(!state.accounts.length){alert('请先在「竞品账号库」添加账号');return;} openCase(null); };
+document.getElementById('caseAccFilter').onchange=renderCases;
+
+/* ---------- 弹窗通用 ---------- */
+let editing={table:null,id:null};
+function showModal(){ document.getElementById('mask').classList.add('show'); }
+function closeModal(){ document.getElementById('mask').classList.remove('show'); document.getElementById('modalSave').style.display=''; document.getElementById('modalCancel').textContent='取消'; }
+document.getElementById('modalCancel').onclick=closeModal;
+document.getElementById('mask').onclick=e=>{ if(e.target.id==='mask') closeModal(); };
+document.getElementById('modalSave').onclick=()=>{
+  if(editing.table==='links'){ closeModal(); return; }
+  if(editing.table==='batch'){ doBatchWrite(); return; }
+  const t=editing.table;
+  if(t==='acc'){
+    const o={ id:editing.id||uid(),
+      账号名称:val('f_名称'), 平台:val('f_平台'), 首次发现:val('f_发现'), 发现时已开通:(val('f_已开')===''?'':Number(val('f_已开'))), 主页链接:val('f_链接'), 橱窗链接:val('f_橱窗'),
+      粉丝量:Number(val('f_粉丝'))||0, 内容领域:val('f_领域'), 主要商品:val('f_商品'),
+      账号定位:val('f_定位'), 备注:val('f_备注') };
+    if(!o.账号名称){alert('请填写账号名称');return;}
+    if(editing.id){ state.accounts=state.accounts.map(x=>x.id===editing.id?{...x,...o}:x); }
+    else state.accounts.push(o);
+  }
+  if(t==='daily'){
+    const cur=Number(val('f_当前'))||0, yest=Number(val('f_昨日'))||0;
+    // 发现当天无前一日对比基准，新增销量记为 0（累计存量不计入"当天新增"）
+    const acct=state.accounts.find(a=>a.账号名称===val('f_账号'));
+    const isFirstDay = !!(acct && acct.首次发现 && val('f_日期')===acct.首次发现);
+    const add = isFirstDay ? 0 : cur-yest;
+    const o={ id:editing.id||uid(),
+      日期:val('f_日期'), 账号:val('f_账号'), 视频标题:val('f_标题'), 视频类型:val('f_类型'),
+      商品:val('f_商品'), 当前销量:cur, 昨日销量:yest, 新增销量:add,
+      点赞数:Number(val('f_点赞'))||0, 评论数:Number(val('f_评论'))||0, 播放量:Number(val('f_播放'))||0,
+      是否爆款:val('f_爆款'), 备注:val('f_备注') };
+    if(!o.日期||!o.账号){alert('请填写日期与账号');return;}
+    if(editing.id){ state.daily=state.daily.map(x=>x.id===editing.id?{...x,...o}:x); }
+    else state.daily.push(o);
+  }
+  if(t==='cases'){
+    const o={ id:editing.id||uid(),
+      账号:val('f_账号'), 视频标题:val('f_标题'), 封面标题:val('f_封面'), 开头3秒:val('f_开头'),
+      内容结构:val('f_结构'), 情绪点:val('f_情绪'), 商品:val('f_商品'), 成交效果:val('f_效果'), 可复制经验:val('f_经验') };
+    if(!o.账号){alert('请选择账号');return;}
+    if(editing.id){ state.cases=state.cases.map(x=>x.id===editing.id?{...x,...o}:x); }
+    else state.cases.push(o);
+  }
+  save(); document.getElementById('mask').classList.remove('show');
+  renderAccounts(); renderDaily(); renderCases();
+  // 同步账号下拉
+  fillAccFilter('dailyAccFilter'); fillAccFilter('caseAccFilter');
+  document.getElementById('trendAcc').innerHTML='<option value="">全部账号合计</option>'+state.accounts.map(a=>`<option>${esc(a.账号名称)}</option>`).join('');
+};
+const val=id=>{ const e=document.getElementById(id); return e?e.value.trim():''; };
+
+/* ---------- 下拉填充 ---------- */
+function fillAccFilter(selId){
+  const sel=document.getElementById(selId); const cur=sel.value;
+  sel.innerHTML='<option value="">全部账号</option>'+state.accounts.map(a=>`<option>${esc(a.账号名称)}</option>`).join('');
+  sel.value=cur;
+}
+
+/* ---------- 看板 ---------- */
+function renderDash(){
+  // 统计卡
+  const totalAcc=state.accounts.length;
+  const totalRec=state.daily.length;
+  const hot=state.daily.filter(r=>r.是否爆款==='是').length + state.cases.length;
+  const last7=lastNDates(7);
+  const add7=state.daily.filter(r=>last7.includes(r.日期)).reduce((s,r)=>s+(Number(r.新增销量)||0),0);
+  document.getElementById('statCards').innerHTML=`
+    <div class="stat"><div class="v">${totalAcc}</div><div class="k">竞品账号数</div></div>
+    <div class="stat"><div class="v">${totalRec}</div><div class="k">每日记录数</div></div>
+    <div class="stat"><div class="v">${hot}</div><div class="k">爆款（记录+案例）</div></div>
+    <div class="stat"><div class="v pos">+${fmt(add7)}</div><div class="k">近7天累计新增销量</div></div>`;
+  // 增长最快账号
+  drawFast();
+  // 趋势
+  const acc=document.getElementById('trendAcc').value;
+  const metric=document.getElementById('trendMetric').value;
+  drawTrend(acc,metric);
+  // 销量最高商品
+  drawTopProducts();
+}
+document.getElementById('trendAcc').onchange=()=>{ if(document.getElementById('view-dash').classList.contains('active')) drawTrend(document.getElementById('trendAcc').value,document.getElementById('trendMetric').value); };
+document.getElementById('trendMetric').onchange=()=>{ if(document.getElementById('view-dash').classList.contains('active')) drawTrend(document.getElementById('trendAcc').value,document.getElementById('trendMetric').value); };
+document.getElementById('winDays').onchange=()=>{ if(document.getElementById('view-dash').classList.contains('active')) drawFast(); };
+
+function lastNDates(n){
+  const out=[]; const d=new Date();
+  for(let i=n-1;i>=0;i--){ const x=new Date(d); x.setDate(d.getDate()-i); out.push(x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')); }
+  return out;
+}
+function datesSorted(){ return [...new Set(state.daily.map(r=>r.日期))].sort(); }
+
+/* 折线图 */
+function drawTrend(acc,metric){
+  const dates=datesSorted();
+  const box=document.getElementById('trendChart');
+  if(!dates.length){ box.innerHTML='<p class="empty">暂无每日记录</p>'; return; }
+  const data=dates.map(dt=>{
+    let recs=state.daily.filter(r=>r.日期===dt);
+    if(acc) recs=recs.filter(r=>r.账号===acc);
+    let v=0;
+    if(metric==='add') v=recs.reduce((s,r)=>s+(Number(r.新增销量)||0),0);
+    else if(metric==='current') v=recs.reduce((s,r)=>s+(Number(r.当前销量)||0),0);
+    else v=recs.reduce((s,r)=>s+(Number(r.播放量)||0),0);
+    return {label:dt.slice(5), value:v};
+  });
+  box.innerHTML=lineChart(data,'#2f6bff');
+}
+function lineChart(data,color){
+  const w=760,h=300,pad=46;
+  const max=Math.max(...data.map(d=>d.value),1);
+  const n=data.length;
+  const X=i=> pad + (n===1? (w-2*pad)/2 : i*(w-2*pad)/(n-1));
+  const Y=v=> h-pad - (v/max)*(h-2*pad);
+  const pts=data.map((d,i)=>`${X(i).toFixed(1)},${Y(d.value).toFixed(1)}`).join(' ');
+  const circ=data.map((d,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(d.value).toFixed(1)}" r="3.5" fill="${color}"/><title>${d.label}: ${fmt(d.value)}</title>`).join('');
+  const xl=data.map((d,i)=>`<text x="${X(i).toFixed(1)}" y="${h-pad+16}" font-size="10" fill="#8a8f99" text-anchor="middle">${d.label}</text>`).join('');
+  const yl=[0,max/2,max].map(v=>`<text x="${pad-8}" y="${(Y(v)+3).toFixed(1)}" font-size="9" fill="#8a8f99" text-anchor="end">${fmt(Math.round(v))}</text>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}">
+    <line x1="${pad}" y1="${h-pad}" x2="${w-pad/2}" y2="${h-pad}" stroke="#e6e8eb"/>
+    <line x1="${pad}" y1="${pad/2}" x2="${pad}" y2="${h-pad}" stroke="#e6e8eb"/>
+    ${yl}${xl}
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5"/>
+    ${circ}</svg>`;
+}
+
+/* 销量最高商品：每个商品取最新一条记录的当前销量 */
+function drawTopProducts(){
+  const box=document.getElementById('topChart');
+  const map={};
+  state.daily.slice().sort((a,b)=>b.日期.localeCompare(a.日期)).forEach(r=>{
+    const k=(r.商品||'未填商品').trim(); if(!k) return;
+    if(!(k in map)) map[k]=Number(r.当前销量)||0; // 取最新日期的当前销量
+  });
+  let arr=Object.entries(map).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,10);
+  if(!arr.length){ box.innerHTML='<p class="empty">暂无数据</p>'; return; }
+  const max=Math.max(...arr.map(d=>d.v),1);
+  const w=760, rowH=34, pad=10, labelW=180;
+  const h=pad*2+arr.length*rowH;
+  const bars=arr.map((d,i)=>{
+    const y=pad+i*rowH; const bw=(d.v/max)*(w-labelW-40);
+    return `<text x="0" y="${y+18}" font-size="12" fill="#1f2329">${esc(d.k.slice(0,16))}</text>
+      <rect x="${labelW}" y="${y+4}" width="${bw.toFixed(1)}" height="20" rx="4" fill="#2f6bff"/>
+      <text x="${labelW+bw+6}" y="${y+19}" font-size="12" fill="#1f2329" font-weight="600">${fmt(d.v)}</text>`;
+  }).join('');
+  box.innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="${w}">${bars}</svg>`;
+}
+
+/* 增长最快账号：近N天累计新增销量 */
+function drawFast(){
+  const box=document.getElementById('fastRank');
+  const days=Math.max(1,Number(document.getElementById('winDays').value)||1);
+  const win=lastNDates(days);
+  const map={};
+  state.daily.filter(r=>win.includes(r.日期)).forEach(r=>{
+    map[r.账号]=(map[r.账号]||0)+(Number(r.新增销量)||0);
+  });
+  let arr=Object.entries(map).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v);
+  if(!arr.length){ box.innerHTML='<p class="empty">近'+days+'天无数据</p>'; return; }
+  const max=Math.max(...arr.map(d=>d.v),1);
+  box.innerHTML=arr.map((d,i)=>{
+    const acc=state.accounts.find(a=>a.账号名称===d.k);
+    const link=acc&&acc.橱窗链接?acc.橱窗链接:'';
+    return `<div class="rank">
+      <div class="idx">${i+1}</div>
+      <div class="name">${esc(d.k)} <span class="pill">+${fmt(d.v)}</span></div>
+      <div class="copy">${link?`<button class="btn sm copy-btn" onclick='copyText(this, ${JSON.stringify(link)})'>复制地址</button>`:'<span style="color:var(--muted);font-size:12px">—</span>'}</div>
+      <div style="width:40%"><div class="bar" style="width:${(d.v/max*100).toFixed(1)}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- 导入/导出/示例 ---------- */
+document.getElementById('btnExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='竞品分析数据_'+todayStr()+'.json'; a.click();
+};
+document.getElementById('btnImport').onclick=()=>document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ const o=JSON.parse(rd.result); if(o.accounts||o.daily||o.cases){ state=o; assignIds(); save(); renderAll();
+/* 跨天后自动刷新账号表（开通时间列） */
+let lastDate=new Date().toDateString();
+setInterval(()=>{
+  const nowDate=new Date().toDateString();
+  if(nowDate!==lastDate){ lastDate=nowDate; renderAccounts(); }
+},60000); alert('导入成功'); } }catch(err){ alert('文件格式错误'); } };
+  rd.readAsText(f);
+};
+document.getElementById('btnClear').onclick=()=>{
+  if(!confirm('确认清空浏览器本地所有数据（账号/记录/案例）？此操作不可恢复。')) return;
+  state={accounts:[],daily:[],cases:[]};
+  save();
+  renderAll();
+  alert('已清空本地数据');
+};
+function mergeLibrary(){
+  const lib = window.INITIAL_DATA; if(!lib) return;
+  const accKeys = new Set(state.accounts.map(a=>a.账号名称));
+  (lib.accounts||[]).forEach(a=>{ if(!accKeys.has(a.账号名称)) state.accounts.push(JSON.parse(JSON.stringify(a))); });
+  const dailyKeys = new Set(state.daily.map(d=>d.日期+'|'+d.账号));
+  (lib.daily||[]).forEach(d=>{ const k=d.日期+'|'+d.账号; if(!dailyKeys.has(k)) state.daily.push(JSON.parse(JSON.stringify(d))); });
+  const caseKeys = new Set(state.cases.map(c=>(c.日期||'')+'|'+(c.账号||'')+'|'+(c.视频标题||'')));
+  (lib.cases||[]).forEach(c=>{ const k=(c.日期||'')+'|'+(c.账号||'')+'|'+(c.视频标题||''); if(!caseKeys.has(k)) state.cases.push(JSON.parse(JSON.stringify(c))); });
+  assignIds(); save(); renderAll();
+}
+document.getElementById('btnSync').onclick=()=>{
+  if(typeof window.INITIAL_DATA === 'undefined' || !window.INITIAL_DATA){ alert('未找到库数据文件 data.js'); return; }
+  if(!confirm('把库内【新增】的账号/记录合并到本地？\n本地已有的数据会原样保留，只补入「库里有、本地还没有」的部分（不会覆盖你改过的内容）。')) return;
+  mergeLibrary();
+  alert('已合并库内新增数据，本地原有数据已保留');
+};
+
+/* ---------- 初始化 ---------- */
+function renderAll(){ renderAccounts(); renderDaily(); renderCases();
+  fillAccFilter('dailyAccFilter'); fillAccFilter('caseAccFilter');
+  document.getElementById('trendAcc').innerHTML='<option value="">全部账号合计</option>'+state.accounts.map(a=>`<option>${esc(a.账号名称)}</option>`).join('');
+}
+load(); renderAll();
+</script>
+</body>
+</html>
