@@ -500,10 +500,11 @@ document.getElementById('batchDaily').onclick=openBatch;
 function flashCopy(btn){
   const o=btn.textContent; btn.textContent='已复制✓'; setTimeout(()=>btn.textContent=o,1200);
 }
-function exportLinks(){
-  if(!state.accounts.length){ alert('账号库为空，无法生成采集清单'); return; }
-  const lines=["# 每日采集链接清单（视频号带货橱窗）","# 用法：把每条链接发到微信「文件传输助手」，在微信里点开即可看到当前销量，再回填到系统「批量新增记录」。",""];
+function buildLinksText(){
+  if(!state.accounts.length) return null;
+  const lines=["# 每日采集链接清单（视频号带货橱窗）","# 用法：把每条链接发到微信「文件传输助手」，在微信里点开即可看到当前销量，再回填到下方「批量回填区」。",""];
   let no=0;
+  const named=[]; // 记录有橱窗链接的账号名，供回填区使用
   state.accounts.forEach(a=>{
     if(!a.橱窗链接) return; // 只列带橱窗链接、可实际采集的账号
     const name=a.账号名称||"（未命名）";
@@ -511,42 +512,43 @@ function exportLinks(){
     const inner=[field,prod].filter(Boolean).join(" / ");
     const head=inner?`${name}（${inner}）`:name;
     no++;
+    named.push(name);
     lines.push(`${no}. ${head}`);
     lines.push("  "+a.橱窗链接);
     lines.push("");
   });
-  if(!no){ alert('账号库中暂无带橱窗链接的账号，请先在「竞品账号库」补全橱窗链接'); return; }
-  const blob=new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"});
+  if(!no) return null;
+  // 批量回填区：纯账号名 + 空格留空，用户填销量后整段粘回「批量新增记录」
+  lines.push("========== 批量回填区（在每行账号名后空格处填今日销量，再把本段粘回「批量新增记录」→ 解析预览 → 确认写入）==========");
+  named.forEach(name=>{
+    lines.push(name+" ");
+  });
+  return { txt: lines.join("\n"), count: no };
+}
+
+function exportLinks(){
+  const r=buildLinksText();
+  if(!r){ alert('账号库中暂无带橱窗链接的账号，请先在「竞品账号库」补全橱窗链接'); return; }
+  const blob=new Blob([r.txt],{type:"text/plain;charset=utf-8"});
   const el=document.createElement("a"); el.href=URL.createObjectURL(blob);
   el.download="每日采集链接清单_"+todayStr()+".txt"; el.click();
-  alert("已导出 "+no+" 个带橱窗链接的账号 → 每日采集链接清单_"+todayStr()+".txt");
+  alert("已导出 "+r.count+" 个带橱窗链接的账号 → 每日采集链接清单_"+todayStr()+".txt");
 }
 function openLinks(){
-  if(!state.accounts.length){ alert('账号库为空'); return; }
-  const withLink=state.accounts.filter(a=>a.橱窗链接);
-  if(!withLink.length){ alert('账号库中暂无带橱窗链接的账号，请先在「竞品账号库」补全'); return; }
-  const lines=["# 每日采集链接清单（视频号带货橱窗）","",""];
-  withLink.forEach((a,i)=>{
-    const name=a.账号名称||"（未命名）";
-    const field=(a.内容领域||"").trim(), prod=(a.主要商品||"").trim();
-    const inner=[field,prod].filter(Boolean).join(" / ");
-    const head=inner?`${name}（${inner}）`:name;
-    lines.push(`${i+1}. ${head}`);
-    lines.push("  "+a.橱窗链接);
-    lines.push("");
-  });
-  const txt=lines.join("\n");
+  const r=buildLinksText();
+  if(!r){ alert('账号库为空'); return; }
+  const txt=r.txt;
   editing={table:'links',id:null};
   document.getElementById('modalTitle').textContent='每日采集链接清单';
   document.getElementById('modalSave').style.display='none';
   document.getElementById('modalCancel').textContent='关闭';
   document.getElementById('modalBody').innerHTML=`
-    <div class="hint">点「复制全部」复制整份清单。把链接发到微信「文件传输助手」点开看销量，再回「批量新增记录」录入。</div>
+    <div class="hint">点「复制全部」复制整份清单（含「批量回填区」）。把每条橱窗链接发到微信「文件传输助手」点开看销量，回填到末尾的「批量回填区」后再粘回「批量新增记录」解析。</div>
     <div style="display:flex;gap:10px;margin-bottom:10px">
       <button class="btn primary" id="links_copyall" type="button">复制全部</button>
       <button class="btn" id="links_download" type="button">下载txt</button>
     </div>
-    <textarea readonly style="width:100%;height:220px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;padding:8px;border:1px solid var(--line);border-radius:8px">${esc(txt)}</textarea>`;
+    <textarea readonly style="width:100%;height:360px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;padding:8px;border:1px solid var(--line);border-radius:8px">${esc(txt)}</textarea>`;
   document.getElementById('links_copyall').onclick=()=>{
     const b=document.getElementById('links_copyall');
     if(navigator.clipboard && window.isSecureContext){ navigator.clipboard.writeText(txt).then(()=>flashCopy(b)).catch(()=>{ if(fallbackCopy(txt)) flashCopy(b); }); }
